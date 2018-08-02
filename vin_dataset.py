@@ -7,7 +7,6 @@ from PIL import Image
 from config import VinConfig
 import pickle as pkl
 
-
 class VinDataset(Dataset):
 
     def __init__(self, config, transform=None):
@@ -84,7 +83,7 @@ class ToTensor(object):
         sample['image']=torch.from_numpy(image) / 255.0
         sample['output_label']=torch.from_numpy(output_label) / 200.0
         sample['output_S_label']=torch.from_numpy(output_S_label) / 200.0 #200 is my visualization boundary
-
+        #print(sample, torch.max(sample['image']))
         return sample
 
 '''

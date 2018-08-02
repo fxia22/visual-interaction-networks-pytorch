@@ -48,7 +48,7 @@ def init(total_state, n_body, fea_num, orbit):
     else:
         for i in range(n_body):
             data[0][i][0] = np.random.rand() * 8.98 + 0.02
-            distance = np.random.rand() * 90.0 + 10.0
+            distance = np.random.rand() * 270.0 + 30.0
             theta = np.random.rand() * 360
             theta_rad = pi / 2 - radians(theta)
             data[0][i][1] = distance * cos(theta_rad)
