@@ -1,4 +1,4 @@
-from vin_dataset import VinDataset, VinTestDataset, ToTensor, ToTensorV2
+from vin_dataset import VinDataset,  ToTensor
 from torchvision import transforms, datasets
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
@@ -19,14 +19,15 @@ class Trainer():
         create_dir(self.config.checkpoint_dir)
 
         dataset = VinDataset(self.config, transform=ToTensor())
-        test_dataset = VinTestDataset(self.config, transform=ToTensorV2())
+        #test_dataset = VinTestDataset(self.config, transform=ToTensorV2())
         self.dataloader = DataLoader(dataset, batch_size=self.config.batch_size,
                                      shuffle=True, num_workers=4)
-        self.test_dataloader = DataLoader(test_dataset, batch_size=1,
-                                          shuffle=True, num_workers=1)
+        #self.test_dataloader = DataLoader(test_dataset, batch_size=1,
+        #                                  shuffle=True, num_workers=1)
         self.optimizer = optim.Adam(self.net.parameters(), lr=0.0005)
         self.logger = Logger(self.config.log_dir)
         self.construct_cors()
+        #print(self.xcor, self.ycor)
         self.save()
         if config.load:
             self.load()
@@ -39,24 +40,24 @@ class Trainer():
 
     def construct_cors(self):
         # x-cor and y-cor setting
-        nx, ny = (self.config.weight, self.config.height)
+        nx, ny = (self.config.width, self.config.height)
         x = np.linspace(0, 1, nx)
         y = np.linspace(0, 1, ny)
         xv, yv = np.meshgrid(x, y)
-        xv = np.reshape(xv, [self.config.height, self.config.weight, 1])
-        yv = np.reshape(yv, [self.config.height, self.config.weight, 1])
-        xcor = np.zeros((self.config.batch_size * 5, self.config.height, self.config.weight, 1), dtype=float)
-        ycor = np.zeros((self.config.batch_size * 5, self.config.height, self.config.weight, 1), dtype=float)
+        xv = np.reshape(xv, [self.config.height, self.config.width, 1])
+        yv = np.reshape(yv, [self.config.height, self.config.width, 1])
+        xcor = np.zeros((self.config.batch_size * 5, self.config.height, self.config.width, 1), dtype=float)
+        ycor = np.zeros((self.config.batch_size * 5, self.config.height, self.config.width, 1), dtype=float)
         for i in range(self.config.batch_size * 5):
             xcor[i] = xv
             ycor[i] = yv
-        xcor = xcor.transpose((0, 3, 1, 2))
-        ycor = ycor.transpose((0, 3, 1, 2))
+        xcor = xcor.transpose((0, 3, 1, 2)).astype(np.float32)
+        ycor = ycor.transpose((0, 3, 1, 2)).astype(np.float32)
         self.xcor, self.ycor = Variable(torch.from_numpy(xcor)).cuda(), Variable(torch.from_numpy(ycor)).cuda()
 
     def train(self):
         total_step = 0
-        df = Variable(torch.ones(1)).double().cuda()
+        df = Variable(torch.ones(1)).float().cuda()
         for epoch in range(100):  # loop over the dataset multiple times
             running_loss = 0.0
             for i, data in enumerate(self.dataloader, 0):
@@ -71,6 +72,8 @@ class Trainer():
                 inputs, output_label, output_S_label = Variable(inputs).cuda(), Variable(output_label).cuda(), Variable(
                     output_S_label).cuda()
 
+
+                #print(inputs, output_label, output_S_label)
                 self.optimizer.zero_grad()
 
                 net_out, aux_out, _ = self.net(inputs, self.xcor, self.ycor)
@@ -81,7 +84,7 @@ class Trainer():
 
                 for i in range(1, 8):
                     mse += (df ** (i + 1)) * loss(net_out[i], output_label[:, i])
-                mse = mse / 8;
+                mse = mse / 8
                 ve_loss = loss(aux_out, output_S_label)
                 total_loss = mse + ve_loss
                 total_loss.backward()
@@ -93,9 +96,10 @@ class Trainer():
                 self.logger.scalar_summary("total_loss", total_loss.data[0], total_step, "train")
             print("epoch ", epoch, " Finished")
             print("testing................")
-            self.test()
+            #self.test()
         print('Finished Training')
 
+    '''
     def test(self):
         test_data = None
         for i, data in enumerate(self.test_dataloader, 0):
@@ -110,7 +114,7 @@ class Trainer():
                 output_S_label).cuda()
 
             out, aux_out, posi = self.net(inputs[:4], self.xcor, self.ycor)
-            velo = posi[0][:, :, 2:4];
+            velo = posi[0][:, :, 2:4]
             xy_estimated[0] = output_S_label[0][3][3][:, :2].data.cpu().numpy() + (velo[0] * 0.01).data.cpu().numpy()
             for i in range(1, len([0])):
                 xy_estimated[i] = xy_estimated[i - 1] + velo[i] * 0.01
@@ -121,3 +125,4 @@ class Trainer():
             make_image2(xy_estimated, self.config.img_folder + "../results/", "modeling")
             print("Done")
             yield
+    '''

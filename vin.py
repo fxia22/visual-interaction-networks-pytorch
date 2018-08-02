@@ -7,7 +7,6 @@ def main():
     from  train import Trainer
     net=Net(VinConfig)
     net=net.cuda()
-    net=net.double()
     trainer=Trainer(VinConfig,net)
     trainer.train()
 

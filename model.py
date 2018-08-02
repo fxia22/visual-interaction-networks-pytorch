@@ -12,13 +12,13 @@ class Net(nn.Module):
         self.pool = nn.MaxPool2d(2, 2)
 
         # visual encoder modules
-        self.conv1 = nn.Conv2d(10, 128, 3, padding=1)
-        self.conv2 = nn.Conv2d(128, 128, 3, padding=1)
-        self.conv3 = nn.Conv2d(128, 128, 3, padding=1)
-        self.conv4 = nn.Conv2d(128, 128, 3, padding=1)
-        self.conv5 = nn.Conv2d(128, 128, 3, padding=1)
+        self.conv1 = nn.Conv2d(8, 128, self.config.No, padding=1)
+        self.conv2 = nn.Conv2d(128, 128, self.config.No, padding=1)
+        self.conv3 = nn.Conv2d(128, 128, self.config.No, padding=1)
+        self.conv4 = nn.Conv2d(128, 128, self.config.No, padding=1)
+        self.conv5 = nn.Conv2d(128, 128, self.config.No, padding=1)
         # shared linear layer to convert the tensors to shape N_obj*64
-        self.fc1 = nn.Linear(128, 3 * 64)
+        self.fc1 = nn.Linear(128, self.config.No * 64)
         # shared MLP layer to output the encoded state code N_obj*64
         self.fc2 = nn.Linear(64 * 2, 64)
         self.fc3 = nn.Linear(64, 64)
@@ -29,26 +29,26 @@ class Net(nn.Module):
         self.self_cores = {}
         for i in range(3):
             self.self_cores[i] = []
-            self.self_cores[i].append(nn.Linear(64, 64).double().cuda())
-            self.self_cores[i].append(nn.Linear(64, 64).double().cuda())
+            self.self_cores[i].append(nn.Linear(64, 64).float().cuda())
+            self.self_cores[i].append(nn.Linear(64, 64).float().cuda())
         self.rel_cores = {}
         for i in range(3):
             self.rel_cores[i] = []
-            self.rel_cores[i].append(nn.Linear(64 * 2, 64).double().cuda())
-            self.rel_cores[i].append(nn.Linear(64, 64).double().cuda())
-            self.rel_cores[i].append(nn.Linear(64, 64).double().cuda())
+            self.rel_cores[i].append(nn.Linear(64 * 2, 64).float().cuda())
+            self.rel_cores[i].append(nn.Linear(64, 64).float().cuda())
+            self.rel_cores[i].append(nn.Linear(64, 64).float().cuda())
 
         self.affector = {}
         for i in range(3):
             self.affector[i] = []
-            self.affector[i].append(nn.Linear(64, 64).double().cuda())
-            self.affector[i].append(nn.Linear(64, 64).double().cuda())
-            self.affector[i].append(nn.Linear(64, 64).double().cuda())
+            self.affector[i].append(nn.Linear(64, 64).float().cuda())
+            self.affector[i].append(nn.Linear(64, 64).float().cuda())
+            self.affector[i].append(nn.Linear(64, 64).float().cuda())
         self.out = {}
         for i in range(3):
             self.out[i] = []
-            self.out[i].append(nn.Linear(64 + 64, 64).double().cuda())
-            self.out[i].append(nn.Linear(64, 64).double().cuda())
+            self.out[i].append(nn.Linear(64 + 64, 64).float().cuda())
+            self.out[i].append(nn.Linear(64, 64).float().cuda())
         self.aggregator1 = nn.Linear(64 * 3, 64)
         self.aggregator2 = nn.Linear(64, 64)
         self.state_decoder = nn.Linear(64, 4)
@@ -63,8 +63,8 @@ class Net(nn.Module):
 
         rel_combination = []
         for i in range(6):
-            row_idx = int(i / (2));
-            col_idx = int(i % (2));
+            row_idx = int(i / (2))
+            col_idx = int(i % (2))
             rel_combination.append(torch.cat([objects[row_idx], objects[col_idx]], 1))
         rel_combination = torch.cat(rel_combination)
         rel_combination=rel_combination.view(-1,64*2)
@@ -101,6 +101,7 @@ class Net(nn.Module):
         f5f6 = torch.cat([f5, f6], 1)
 
         pairs = torch.cat([f1f2, f2f3, f3f4, f4f5, f5f6])
+
         pairs = torch.cat([pairs, x_cor, y_cor], dim=1)
         ve_h1 = F.relu(self.conv1(pairs))
         ve_h1 = self.pool(ve_h1)

@@ -3,32 +3,36 @@ import os
 import numpy as np
 import matplotlib.image as mpimg
 import torch
+from PIL import Image
+from config import VinConfig
+import pickle as pkl
 
 
 class VinDataset(Dataset):
-    """Face Landmarks dataset."""
 
     def __init__(self, config, transform=None):
 
         self.config = config
         self.transform = transform
 
-        total_img = np.zeros((self.config.set_num, int(self.config.frame_num), self.config.height, self.config.weight,
+        total_img = np.zeros((self.config.set_num, int(self.config.frame_num), self.config.height, self.config.width,
                               self.config.col_dim))
         for i in range(self.config.set_num):
             for j in range(int(self.config.frame_num)):
-                total_img[i, j] = mpimg.imread(self.config.img_folder + "train/" + str(i) + '_' + str(j) + '.png')[:, :,
-                                  :self.config.col_dim]
+                #total_img[i, j] = mpimg.imread(self.config.img_folder + "train/" + str(i) + '_' + str(j) + '.png')[:, :,
+                #                  :self.config.col_dim]
 
-        total_data = np.zeros((self.config.set_num, int(self.config.frame_num), self.config.No * 5))
+                total_img[i,j] = np.array(Image.open(os.path.join(self.config.img_folder, 'img_{}_{}.png'.format(i,j))))
+
+        total_data = np.zeros((self.config.set_num, int(self.config.frame_num), self.config.No, 5))
+
         for i in range(self.config.set_num):
-            f = open(self.config.data_folder + "train/" + str(i) + ".csv", "r")
-            total_data[i] = [line[:-1].split(",") for line in f.readlines()]
-        total_data = np.reshape(total_data, [self.config.set_num, int(self.config.frame_num), self.config.No, 5])
+        #    f = open(self.config.data_folder + "train/" + str(i) + ".csv", "r")
+            total_data[i] = pkl.load(open(os.path.join(self.config.data_folder, 'data_{}.pkl'.format(i)) , 'rb'))
 
         # reshape img and data
         input_img = np.zeros((self.config.set_num * (int(self.config.frame_num) - 14 + 1), 6, self.config.height,
-                              self.config.weight, self.config.col_dim)
+                              self.config.width, self.config.col_dim)
                              )
         output_label = np.zeros((self.config.set_num * (int(self.config.frame_num) - 14 + 1), 8, self.config.No, 4)
                                 )
@@ -47,7 +51,7 @@ class VinDataset(Dataset):
         # shuffle
         tr_data_num = int(len(input_img) * 1)
         total_idx = np.arange(len(input_img))
-        np.random.shuffle(total_idx)
+        #np.random.shuffle(total_idx)
         self.tr_data = input_img[total_idx]
         self.tr_label = output_label[total_idx]
         self.tr_S_label = output_S_label[total_idx]
@@ -70,18 +74,21 @@ class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
 
     def __call__(self, sample):
-        image, output_label, output_S_label = sample['image'], sample['output_label'], sample[
-            'output_S_label']
+        image, output_label, output_S_label = sample['image'].astype(np.float32), sample['output_label'].astype(np.float32), sample[
+            'output_S_label'].astype(np.float32)
 
         # swap color axis because
         # numpy image: H x W x C
         # torch image: C X H X W
         image = image.transpose((0, 3, 1, 2))
-        sample['image']=torch.from_numpy(image)
-        sample['output_label']=torch.from_numpy(output_label)
-        sample['output_S_label']=torch.from_numpy(output_S_label)
+        sample['image']=torch.from_numpy(image) / 255.0
+        sample['output_label']=torch.from_numpy(output_label) / 200.0
+        sample['output_S_label']=torch.from_numpy(output_S_label) / 200.0 #200 is my visualization boundary
+
         return sample
 
+'''
+# I think this is also redundant
 class ToTensorV2(object):
     """Convert ndarrays in sample to Tensors."""
 
@@ -97,10 +104,19 @@ class ToTensorV2(object):
         sample['output_label']=torch.from_numpy(output_label)
         sample['output_S_label']=torch.from_numpy(output_S_label)
         return sample
+'''
 
+if __name__ == "__main__":
+    #test dataset implementation
+    conf = VinConfig()
+    dataset = VinDataset(config=conf, transform=ToTensor())
+
+
+
+'''
+# I think test dataset implementation is redundant
 
 class VinTestDataset(Dataset):
-    """Face Landmarks dataset."""
 
     def __init__(self, config, transform=None):
 
@@ -112,14 +128,14 @@ class VinTestDataset(Dataset):
 
     def __getitem__(self, idx):
 
-        total_img = np.zeros((self.config.set_num, int(self.config.frame_num), self.config.height, self.config.weight,
+        total_img = np.zeros((self.config.set_num, int(self.config.frame_num), self.config.height, self.config.width,
                               self.config.col_dim))
         for i in range(self.config.set_num):
             for j in range(int(self.config.frame_num)):
                 total_img[i, j] = mpimg.imread(self.config.img_folder + "train/" + str(i) + '_' + str(j) + '.png')[:, :,
                                   :self.config.col_dim]
         ts_img = np.zeros(
-            (1, int(self.config.frame_num), self.config.height, self.config.weight, self.config.col_dim),
+            (1, int(self.config.frame_num), self.config.height, self.config.width, self.config.col_dim),
             dtype=float)
         for i in range(1):
             for j in range(int(self.config.frame_num)):
@@ -132,9 +148,9 @@ class VinTestDataset(Dataset):
 
         # reshape img and data
         input_img = np.zeros(
-            (1 * (int(self.config.frame_num) - 14 + 1), 6, self.config.height, self.config.weight,
+            (1 * (int(self.config.frame_num) - 14 + 1), 6, self.config.height, self.config.width,
              self.config.col_dim),
-            dtype=float);
+            dtype=float)
         output_label = np.zeros((1 * (int(self.config.frame_num) - 14 + 1), 8, self.config.No, 4), dtype=float)
         output_S_label = np.zeros((1 * (int(self.config.frame_num) - 14 + 1), 4, self.config.No, 4), dtype=float)
         for i in range(1):
@@ -159,3 +175,4 @@ class VinTestDataset(Dataset):
 
         return sample
 
+'''
